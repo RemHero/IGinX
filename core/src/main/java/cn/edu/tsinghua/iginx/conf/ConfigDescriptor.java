@@ -120,10 +120,11 @@ public class ConfigDescriptor {
       config.setEnableEnvParameter(
           Boolean.parseBoolean(properties.getProperty("enableEnvParameter", "false")));
 
-      config.setStatisticsCollectorClassName(
-          properties.getProperty("statisticsCollectorClassName", ""));
-      config.setStatisticsLogInterval(
-          Integer.parseInt(properties.getProperty("statisticsLogInterval", "5000")));
+      config.setEnableCollectStatistics(
+          Boolean.parseBoolean(properties.getProperty("enableCollectStatistics", "false")));
+      Integer.parseInt(properties.getProperty("statisticsLogInterval", "10000"));
+      config.setEnableStatisticsSync(
+          Boolean.parseBoolean(properties.getProperty("enableStatisticsSync", "false")));
 
       config.setRestIp(properties.getProperty("restIp", "127.0.0.1"));
       config.setRestPort(Integer.parseInt(properties.getProperty("restPort", "6666")));
@@ -271,8 +272,10 @@ public class ConfigDescriptor {
     config.setDatabaseClassNames(
         EnvUtils.loadEnv("databaseClassNames", config.getDatabaseClassNames()));
     config.setPolicyClassName(EnvUtils.loadEnv("policyClassName", config.getPolicyClassName()));
-    config.setStatisticsCollectorClassName(
-        EnvUtils.loadEnv("statisticsCollectorClassName", config.getStatisticsCollectorClassName()));
+    config.setEnableCollectStatistics(
+        EnvUtils.loadEnv("enableCollectStatistics", config.isEnableCollectStatistics()));
+    config.setEnableStatisticsSync(
+        EnvUtils.loadEnv("enableStatisticsSync", config.isEnableStatisticsSync()));
     config.setStatisticsLogInterval(
         EnvUtils.loadEnv("statisticsLogInterval", config.getStatisticsLogInterval()));
     config.setRestIp(EnvUtils.loadEnv("restIp", config.getRestIp()));

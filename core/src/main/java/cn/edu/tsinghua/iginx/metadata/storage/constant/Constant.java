@@ -40,6 +40,10 @@ public class Constant {
   public static final String STATISTICS_FRAGMENT_REQUESTS_PREFIX_WRITE =
       "/statistics/fragment/requests/write";
 
+  public static final String STATISTICS_IGINX_PREFIX = "/statistics/iginx";
+
+  public static final String STATISTICS_IGINX_LOCK_NODE = "/lock/statistics/iginx";
+
   public static final String STATISTICS_FRAGMENT_REQUESTS_PREFIX_READ =
       "/statistics/fragment/requests/read";
 

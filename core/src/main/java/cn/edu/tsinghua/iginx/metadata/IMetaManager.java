@@ -213,6 +213,10 @@ public interface IMetaManager {
 
   List<TransformTaskMeta> getTransformTasksByModule(String moduleName);
 
+  void updateStatistics(StatisticMeta statisticMeta);
+
+  List<StatisticMeta> getStatisticsMetas();
+
   void updateFragmentRequests(
       Map<FragmentMeta, Long> writeRequestsMap, Map<FragmentMeta, Long> readRequestsMap)
       throws Exception;
