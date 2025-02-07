@@ -1,11 +1,13 @@
 package cn.edu.tsinghua.iginx.statistics.collector;
 
 public enum CollectorType {
-    WriteInfo,
-    OperatorInfo,
+  WriteInfo,
+  OperatorInfo,
 
-    ParseStage,
-    LogicalStage,
-    PhysicalStage,
-    ExecuteStage
+  ParseStage,
+  LogicalStage,
+  PhysicalStage,
+  ExecuteStage,
+
+  SampleCollector,
 }

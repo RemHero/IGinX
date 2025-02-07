@@ -214,6 +214,7 @@ public interface IMetaStorage {
 
   void registerMaxActiveEndKeyStatisticsChangeHook(MaxActiveEndKeyStatisticsChangeHook hook)
       throws MetaStorageException;
+
   void registerStatisticsChangeHook(IGinXStatisticsHook hook);
 
   void updateStatistics(StatisticMeta statisticMeta) throws MetaStorageException;

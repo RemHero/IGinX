@@ -25,6 +25,7 @@ import cn.edu.tsinghua.iginx.engine.shared.source.FragmentSource;
 import cn.edu.tsinghua.iginx.engine.shared.source.Source;
 import cn.edu.tsinghua.iginx.engine.shared.source.SourceType;
 import cn.edu.tsinghua.iginx.metadata.entity.FragmentMeta;
+import cn.edu.tsinghua.iginx.statistics.data.TableStatistic;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -38,6 +39,8 @@ public class Project extends AbstractUnaryOperator {
   private final boolean remainKey; // 是否保留以key结尾的field
 
   private boolean needSelectedPath;
+
+  private TableStatistic tableStatistic = null;
 
   public Project(Source source, List<String> patterns, TagFilter tagFilter) {
     this(source, patterns, tagFilter, false, false);
@@ -142,5 +145,13 @@ public class Project extends AbstractUnaryOperator {
         && (Objects.equals(tagFilter, that.tagFilter))
         && remainKey == that.remainKey
         && needSelectedPath == that.needSelectedPath;
+  }
+
+  public TableStatistic getTableStatistic() {
+    return tableStatistic;
+  }
+
+  public void setTableStatistic(TableStatistic tableStatistic) {
+    this.tableStatistic = tableStatistic;
   }
 }

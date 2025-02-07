@@ -161,6 +161,8 @@ public class InnerJoin extends AbstractJoin {
     } else {
       this.joinColumns = new ArrayList<>();
     }
+    System.out.println("InnerJoin: " + joinColumns);
+    System.out.println("Filter: " + filter);
     this.isNaturalJoin = isNaturalJoin;
     this.isJoinByKey = isJoinByKey;
     this.tagFilter = tagFilter;

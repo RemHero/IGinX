@@ -73,7 +73,7 @@ public class ETCDMetaStorage implements IMetaStorage {
   private final Lock fragmentLeaseLock = new ReentrantLock();
   private final Lock userLeaseLock = new ReentrantLock();
   private final Lock transformLeaseLock = new ReentrantLock();
-    private final Lock iginxStatisticsLeaseLock = new ReentrantLock();
+  private final Lock iginxStatisticsLeaseLock = new ReentrantLock();
   private final Lock fragmentRequestsCounterLeaseLock = new ReentrantLock();
   private final Lock fragmentHeatCounterLeaseLock = new ReentrantLock();
   private final Lock timeseriesHeatCounterLeaseLock = new ReentrantLock();
@@ -103,9 +103,9 @@ public class ETCDMetaStorage implements IMetaStorage {
   private TransformChangeHook transformChangeHook = null;
   private long transformLease = -1L;
 
-    private Watch.Watcher iginxStatisticsWatcher;
-    private IGinXStatisticsHook iginxStatisticsHook = null;
-    private long iginxStatisticsLease = -1L;
+  private Watch.Watcher iginxStatisticsWatcher;
+  private IGinXStatisticsHook iginxStatisticsHook = null;
+  private long iginxStatisticsLease = -1L;
   private long fragmentRequestsCounterLease = -1L;
 
   private long fragmentHeatCounterLease = -1L;
@@ -463,50 +463,50 @@ public class ETCDMetaStorage implements IMetaStorage {
                   public void onCompleted() {}
                 });
 
-      // 注册iginx统计信息监听
-      this.iginxStatisticsWatcher =
-          client
-              .getWatchClient()
-              .watch(
-                  ByteSequence.from(STATISTICS_IGINX_PREFIX.getBytes()),
-                  WatchOption.newBuilder()
-                      .withPrefix(ByteSequence.from(STATISTICS_IGINX_PREFIX.getBytes()))
-                      .withPrevKV(true)
-                      .build(),
-                  new Watch.Listener() {
-                      @Override
-                      public void onNext(WatchResponse watchResponse) {
-                          if (ETCDMetaStorage.this.iginxStatisticsHook == null) {
-                              return;
-                          }
-                          for (WatchEvent event : watchResponse.getEvents()) {
-                              StatisticMeta statisticMeta;
-                              switch (event.getEventType()) {
-                                  case PUT:
-                                      statisticMeta =
-                                          JsonUtils.fromJson(
-                                              event.getKeyValue().getValue().getBytes(), StatisticMeta.class);
-                                      iginxStatisticsHook.onChange(statisticMeta.getIpAndPort(), statisticMeta);
-                                      break;
-                                  case DELETE:
-                                      statisticMeta =
-                                          JsonUtils.fromJson(
-                                              event.getPrevKV().getValue().getBytes(), StatisticMeta.class);
-                                      iginxStatisticsHook.onChange(statisticMeta.getIpAndPort(), null);
-                                      break;
-                                  default:
-                                      LOGGER.error("unexpected watchEvent: " + event.getEventType());
-                                      break;
-                              }
-                          }
+    // 注册iginx统计信息监听
+    this.iginxStatisticsWatcher =
+        client
+            .getWatchClient()
+            .watch(
+                ByteSequence.from(STATISTICS_IGINX_PREFIX.getBytes()),
+                WatchOption.newBuilder()
+                    .withPrefix(ByteSequence.from(STATISTICS_IGINX_PREFIX.getBytes()))
+                    .withPrevKV(true)
+                    .build(),
+                new Watch.Listener() {
+                  @Override
+                  public void onNext(WatchResponse watchResponse) {
+                    if (ETCDMetaStorage.this.iginxStatisticsHook == null) {
+                      return;
+                    }
+                    for (WatchEvent event : watchResponse.getEvents()) {
+                      StatisticMeta statisticMeta;
+                      switch (event.getEventType()) {
+                        case PUT:
+                          statisticMeta =
+                              JsonUtils.fromJson(
+                                  event.getKeyValue().getValue().getBytes(), StatisticMeta.class);
+                          iginxStatisticsHook.onChange(statisticMeta.getIpAndPort(), statisticMeta);
+                          break;
+                        case DELETE:
+                          statisticMeta =
+                              JsonUtils.fromJson(
+                                  event.getPrevKV().getValue().getBytes(), StatisticMeta.class);
+                          iginxStatisticsHook.onChange(statisticMeta.getIpAndPort(), null);
+                          break;
+                        default:
+                          LOGGER.error("unexpected watchEvent: " + event.getEventType());
+                          break;
                       }
+                    }
+                  }
 
-                      @Override
-                      public void onError(Throwable throwable) {}
+                  @Override
+                  public void onError(Throwable throwable) {}
 
-                      @Override
-                      public void onCompleted() {}
-                  });
+                  @Override
+                  public void onCompleted() {}
+                });
 
     // 注册 reshardStatus 的监听
     this.reshardStatusWatcher =
@@ -2323,87 +2323,87 @@ public class ETCDMetaStorage implements IMetaStorage {
     }
   }
 
-    private void lockIGinXStatistics() throws MetaStorageException {
-        try {
-            iginxStatisticsLeaseLock.lock();
-            iginxStatisticsLease = client.getLeaseClient().grant(MAX_LOCK_TIME).get().getID();
-            client
-                .getLockClient()
-                .lock(ByteSequence.from(STATISTICS_IGINX_LOCK_NODE.getBytes()), iginxStatisticsLease);
-        } catch (Exception e) {
-            iginxStatisticsLeaseLock.unlock();
-            throw new MetaStorageException("acquire iginx statistics mutex error: ", e);
-        }
+  private void lockIGinXStatistics() throws MetaStorageException {
+    try {
+      iginxStatisticsLeaseLock.lock();
+      iginxStatisticsLease = client.getLeaseClient().grant(MAX_LOCK_TIME).get().getID();
+      client
+          .getLockClient()
+          .lock(ByteSequence.from(STATISTICS_IGINX_LOCK_NODE.getBytes()), iginxStatisticsLease);
+    } catch (Exception e) {
+      iginxStatisticsLeaseLock.unlock();
+      throw new MetaStorageException("acquire iginx statistics mutex error: ", e);
     }
+  }
 
-    private void releaseIGinXStatistics() throws MetaStorageException {
-        try {
-            client.getLockClient().unlock(ByteSequence.from(STATISTICS_IGINX_LOCK_NODE.getBytes())).get();
-            client.getLeaseClient().revoke(iginxStatisticsLease).get();
-            iginxStatisticsLease = -1L;
-        } catch (Exception e) {
-            throw new MetaStorageException("release user mutex error: ", e);
-        } finally {
-            iginxStatisticsLeaseLock.unlock();
-        }
+  private void releaseIGinXStatistics() throws MetaStorageException {
+    try {
+      client.getLockClient().unlock(ByteSequence.from(STATISTICS_IGINX_LOCK_NODE.getBytes())).get();
+      client.getLeaseClient().revoke(iginxStatisticsLease).get();
+      iginxStatisticsLease = -1L;
+    } catch (Exception e) {
+      throw new MetaStorageException("release user mutex error: ", e);
+    } finally {
+      iginxStatisticsLeaseLock.unlock();
     }
+  }
 
-    @Override
-    public void registerStatisticsChangeHook(IGinXStatisticsHook hook) {
-        this.iginxStatisticsHook = hook;
-    }
+  @Override
+  public void registerStatisticsChangeHook(IGinXStatisticsHook hook) {
+    this.iginxStatisticsHook = hook;
+  }
 
-    @Override
-    public void updateStatistics(StatisticMeta statisticMeta) throws MetaStorageException {
-        try {
-            lockIGinXStatistics();
-            this.client
-                .getKVClient()
-                .put(
-                    ByteSequence.from(
-                        (STATISTICS_IGINX_PREFIX + statisticMeta.getIpAndPort()).getBytes()),
-                    ByteSequence.from(JsonUtils.toJson(statisticMeta)))
-                .get();
-        } catch (ExecutionException | InterruptedException e) {
-            LOGGER.error("got error when update iginx statistics: ", e);
-            throw new MetaStorageException(e);
-        } finally {
-            if (iginxStatisticsLease != -1) {
-                releaseIGinXStatistics();
-            }
-        }
-        if (iginxStatisticsHook != null) {
-            iginxStatisticsHook.onChange(statisticMeta.getIpAndPort(), statisticMeta);
-        }
+  @Override
+  public void updateStatistics(StatisticMeta statisticMeta) throws MetaStorageException {
+    try {
+      lockIGinXStatistics();
+      this.client
+          .getKVClient()
+          .put(
+              ByteSequence.from(
+                  (STATISTICS_IGINX_PREFIX + statisticMeta.getIpAndPort()).getBytes()),
+              ByteSequence.from(JsonUtils.toJson(statisticMeta)))
+          .get();
+    } catch (ExecutionException | InterruptedException e) {
+      LOGGER.error("got error when update iginx statistics: ", e);
+      throw new MetaStorageException(e);
+    } finally {
+      if (iginxStatisticsLease != -1) {
+        releaseIGinXStatistics();
+      }
     }
+    if (iginxStatisticsHook != null) {
+      iginxStatisticsHook.onChange(statisticMeta.getIpAndPort(), statisticMeta);
+    }
+  }
 
-    @Override
-    public List<StatisticMeta> loadStatisticsMeta() throws MetaStorageException {
-        try {
-            List<StatisticMeta> statisticMetas = new ArrayList<>();
-            GetResponse response =
-                this.client
-                    .getKVClient()
-                    .get(
-                        ByteSequence.from(STATISTICS_IGINX_PREFIX.getBytes()),
-                        GetOption.newBuilder()
-                            .withPrefix(ByteSequence.from(STATISTICS_IGINX_PREFIX.getBytes()))
-                            .build())
-                    .get();
-            response
-                .getKvs()
-                .forEach(
-                    e -> {
-                        StatisticMeta statisticMeta =
-                            JsonUtils.fromJson(e.getValue().getBytes(), StatisticMeta.class);
-                        statisticMetas.add(statisticMeta);
-                    });
-            return statisticMetas;
-        } catch (ExecutionException | InterruptedException e) {
-            LOGGER.error("got error when load iginx statistics: ", e);
-            throw new MetaStorageException(e);
-        }
+  @Override
+  public List<StatisticMeta> loadStatisticsMeta() throws MetaStorageException {
+    try {
+      List<StatisticMeta> statisticMetas = new ArrayList<>();
+      GetResponse response =
+          this.client
+              .getKVClient()
+              .get(
+                  ByteSequence.from(STATISTICS_IGINX_PREFIX.getBytes()),
+                  GetOption.newBuilder()
+                      .withPrefix(ByteSequence.from(STATISTICS_IGINX_PREFIX.getBytes()))
+                      .build())
+              .get();
+      response
+          .getKvs()
+          .forEach(
+              e -> {
+                StatisticMeta statisticMeta =
+                    JsonUtils.fromJson(e.getValue().getBytes(), StatisticMeta.class);
+                statisticMetas.add(statisticMeta);
+              });
+      return statisticMetas;
+    } catch (ExecutionException | InterruptedException e) {
+      LOGGER.error("got error when load iginx statistics: ", e);
+      throw new MetaStorageException(e);
     }
+  }
 
   @Override
   public void lockMaxActiveEndKeyStatistics() throws MetaStorageException {
@@ -2503,8 +2503,8 @@ public class ETCDMetaStorage implements IMetaStorage {
     this.transformWatcher.close();
     this.transformWatcher = null;
 
-      this.iginxStatisticsWatcher.close();
-      this.iginxStatisticsWatcher = null;
+    this.iginxStatisticsWatcher.close();
+    this.iginxStatisticsWatcher = null;
 
     this.client.close();
     this.client = null;

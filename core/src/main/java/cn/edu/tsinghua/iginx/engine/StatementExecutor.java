@@ -62,9 +62,10 @@ import cn.edu.tsinghua.iginx.sql.exception.SQLParserException;
 import cn.edu.tsinghua.iginx.sql.statement.*;
 import cn.edu.tsinghua.iginx.sql.statement.select.SelectStatement;
 import cn.edu.tsinghua.iginx.sql.statement.select.UnarySelectStatement;
-
 import cn.edu.tsinghua.iginx.statistics.broadcaster.StatisticsBroadcaster;
 import cn.edu.tsinghua.iginx.statistics.collector.CollectorType;
+import cn.edu.tsinghua.iginx.statistics.handler.StatsHandler;
+import cn.edu.tsinghua.iginx.statistics.handler.TableStatHandler;
 import cn.edu.tsinghua.iginx.thrift.AggregateType;
 import cn.edu.tsinghua.iginx.thrift.DataType;
 import cn.edu.tsinghua.iginx.thrift.Status;
@@ -251,6 +252,16 @@ public class StatementExecutor {
     for (LogicalGenerator generator : generatorList) {
       before(ctx, CollectorType.LogicalStage);
       Operator root = generator.generate(ctx);
+
+      // test stats
+      // select s1.s2 from us.d1.s1 join us.d1.s2;
+      if (TableStatHandler.flag) {
+        TableStatHandler.flag = false;
+        StatsHandler statsHandler = new StatsHandler();
+        statsHandler.recursiveDeriveStats(root,null);
+      }
+
+
       after(ctx, CollectorType.LogicalStage);
       if (root == null && !metaManager.hasWritableStorageEngines()) {
         ctx.setResult(new Result(RpcUtils.SUCCESS));

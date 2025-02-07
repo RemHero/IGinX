@@ -4,5 +4,5 @@ import cn.edu.tsinghua.iginx.metadata.entity.StatisticMeta;
 
 public interface IGinXStatisticsHook {
 
-    void onChange(String className, StatisticMeta statisticMeta);
+  void onChange(String className, StatisticMeta statisticMeta);
 }

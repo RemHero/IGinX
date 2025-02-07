@@ -19,11 +19,19 @@
  */
 package cn.edu.tsinghua.iginx.engine.shared.operator;
 
+import cn.edu.tsinghua.iginx.engine.shared.operator.filter.Filter;
 import cn.edu.tsinghua.iginx.engine.shared.operator.type.OperatorType;
+import cn.edu.tsinghua.iginx.statistics.data.StatsInfo;
 
 public abstract class AbstractOperator implements Operator {
 
   private final OperatorType type;
+
+  private Double rowCount;
+
+  private Double selectivity;
+
+  private StatsInfo statsInfo;
 
   public AbstractOperator() {
     this.type = OperatorType.Unknown;
@@ -36,8 +44,32 @@ public abstract class AbstractOperator implements Operator {
     this.type = type;
   }
 
+  public StatsInfo getStatsInfo() {
+    return statsInfo;
+  }
+
+  public void setStatsInfo(StatsInfo statsInfo) {
+    this.statsInfo = statsInfo;
+  }
+
   @Override
   public OperatorType getType() {
     return type;
   }
+
+  @Override
+  public Double getRowCount() {
+    return rowCount;
+  }
+
+  public void setRowCount(Double rowCount) {
+    this.rowCount = rowCount;
+  }
+
+  @Override
+  public Double getSelectivity(Filter filter) {
+    return selectivity;
+  }
+
+  public void setSelectivity(Filter filter, Double selectivity) {}
 }

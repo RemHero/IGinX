@@ -366,4 +366,8 @@ public class Result {
     }
     return resp;
   }
+
+  public List<DataType> getDataTypeList() {
+    return dataTypes;
+  }
 }

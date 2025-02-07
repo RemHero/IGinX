@@ -13,58 +13,58 @@ import org.slf4j.LoggerFactory;
 
 public class OperatorInfoCollector extends AbstractStatisticsCollector {
 
-    private static final Logger logger = LoggerFactory.getLogger(OperatorInfoCollector.class);
+  private static final Logger logger = LoggerFactory.getLogger(OperatorInfoCollector.class);
 
-    private static final CollectorType collectorType = CollectorType.OperatorInfo;
+  private static final CollectorType collectorType = CollectorType.OperatorInfo;
 
-    private final ReadWriteLock lock = new ReentrantReadWriteLock();
+  private final ReadWriteLock lock = new ReentrantReadWriteLock();
 
-    private final Map<OperatorType, Long> operatorCounterMap = new HashMap<>();
+  private final Map<OperatorType, Long> operatorCounterMap = new HashMap<>();
 
-    private final Map<OperatorType, Long> operatorSpanMap = new HashMap<>();
+  private final Map<OperatorType, Long> operatorSpanMap = new HashMap<>();
 
-    private final Map<OperatorType, Long> operatorRowsCountMap = new HashMap<>();
+  private final Map<OperatorType, Long> operatorRowsCountMap = new HashMap<>();
 
-    @Override
-    protected CollectorType getCollectorType() {
-        return collectorType;
-    }
+  @Override
+  protected CollectorType getCollectorType() {
+    return collectorType;
+  }
 
-    @Override
-    protected void processStatistics(Statistics statistics) {
-        lock.writeLock().lock();
-        TaskVisitor visitor =
-            new TaskStatsVisitor(operatorCounterMap, operatorSpanMap, operatorRowsCountMap);
-        statistics.getContext().getPhysicalTree().accept(visitor);
-        lock.writeLock().unlock();
-    }
+  @Override
+  protected void processStatistics(Statistics statistics) {
+    lock.writeLock().lock();
+    TaskVisitor visitor =
+        new TaskStatsVisitor(operatorCounterMap, operatorSpanMap, operatorRowsCountMap);
+    statistics.getContext().getPhysicalTree().accept(visitor);
+    lock.writeLock().unlock();
+  }
 
-    @Override
-    public void broadcastStatistics() {
-        lock.readLock().lock();
-        logger.info(String.format("%s Statistics Info: ", collectorType));
+  @Override
+  public void broadcastStatistics() {
+    lock.readLock().lock();
+    logger.info(String.format("%s Statistics Info: ", collectorType));
 
-        operatorCounterMap.forEach(
-            (type, count) -> {
-                long span = operatorSpanMap.get(type);
-                logger.info("\ttype: " + type + ", count: " + count + ", span: " + span + "ms");
-                if (count != 0) {
-                    logger.info("\taverage-span: " + (1.0 * span) / count + "ms");
-                }
-            });
+    operatorCounterMap.forEach(
+        (type, count) -> {
+          long span = operatorSpanMap.get(type);
+          logger.info("\ttype: " + type + ", count: " + count + ", span: " + span + "ms");
+          if (count != 0) {
+            logger.info("\taverage-span: " + (1.0 * span) / count + "ms");
+          }
+        });
 
-        lock.readLock().unlock();
-    }
+    lock.readLock().unlock();
+  }
 
-    public Map<OperatorType, Long> getOperatorCounterMap() {
-        return operatorCounterMap;
-    }
+  public Map<OperatorType, Long> getOperatorCounterMap() {
+    return operatorCounterMap;
+  }
 
-    public Map<OperatorType, Long> getOperatorSpanMap() {
-        return operatorSpanMap;
-    }
+  public Map<OperatorType, Long> getOperatorSpanMap() {
+    return operatorSpanMap;
+  }
 
-    public Map<OperatorType, Long> getOperatorRowsCountMap() {
-        return operatorRowsCountMap;
-    }
+  public Map<OperatorType, Long> getOperatorRowsCountMap() {
+    return operatorRowsCountMap;
+  }
 }

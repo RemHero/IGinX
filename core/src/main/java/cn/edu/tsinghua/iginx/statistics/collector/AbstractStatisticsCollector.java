@@ -10,52 +10,52 @@ import java.util.function.Function;
 
 public abstract class AbstractStatisticsCollector {
 
-    protected static final String BEGIN = "Begin-";
+  protected static final String BEGIN = "Begin-";
 
-    protected static final String END = "End-";
+  protected static final String END = "End-";
 
-    private final LinkedBlockingQueue<Statistics> statisticsQueue = new LinkedBlockingQueue<>();
+  private final LinkedBlockingQueue<Statistics> statisticsQueue = new LinkedBlockingQueue<>();
 
-    // before process logic
-    protected Function<RequestContext, Status> before =
-        requestContext -> {
-            requestContext.setExtraParam(BEGIN + getCollectorType(), System.currentTimeMillis());
-            return null;
-        };
+  // before process logic
+  protected Function<RequestContext, Status> before =
+      requestContext -> {
+        requestContext.setExtraParam(BEGIN + getCollectorType(), System.currentTimeMillis());
+        return null;
+      };
 
-    // after process logic
-    protected Function<RequestContext, Status> after =
-        requestContext -> {
-            long endTime = System.currentTimeMillis();
-            requestContext.setExtraParam(END + getCollectorType(), endTime);
-            long startTime = (long) requestContext.getExtraParam(BEGIN + getCollectorType());
-            statisticsQueue.add(
-                new Statistics(requestContext.getId(), startTime, endTime, requestContext));
-            return null;
-        };
+  // after process logic
+  protected Function<RequestContext, Status> after =
+      requestContext -> {
+        long endTime = System.currentTimeMillis();
+        requestContext.setExtraParam(END + getCollectorType(), endTime);
+        long startTime = (long) requestContext.getExtraParam(BEGIN + getCollectorType());
+        statisticsQueue.add(
+            new Statistics(requestContext.getId(), startTime, endTime, requestContext));
+        return null;
+      };
 
-    public AbstractStatisticsCollector() {
-        Executors.newSingleThreadExecutor()
-            .submit(
-                () -> {
-                    while (true) {
-                        Statistics statistics = statisticsQueue.take();
-                        processStatistics(statistics);
-                    }
-                });
-    }
+  public AbstractStatisticsCollector() {
+    Executors.newSingleThreadExecutor()
+        .submit(
+            () -> {
+              while (true) {
+                Statistics statistics = statisticsQueue.take();
+                processStatistics(statistics);
+              }
+            });
+  }
 
-    protected abstract CollectorType getCollectorType();
+  protected abstract CollectorType getCollectorType();
 
-    protected abstract void processStatistics(Statistics statistics);
+  protected abstract void processStatistics(Statistics statistics);
 
-    public abstract void broadcastStatistics();
+  public abstract void broadcastStatistics();
 
-    public Processor getPreProcessor() {
-        return before::apply;
-    }
+  public Processor getPreProcessor() {
+    return before::apply;
+  }
 
-    public Processor getPostProcessor() {
-        return after::apply;
-    }
+  public Processor getPostProcessor() {
+    return after::apply;
+  }
 }

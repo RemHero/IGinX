@@ -18,61 +18,61 @@ import java.util.Map;
 
 public class StatisticsBroadcaster extends AbstractStatisticsBroadcaster {
 
-    private static final Config config = ConfigDescriptor.getInstance().getConfig();
+  private static final Config config = ConfigDescriptor.getInstance().getConfig();
 
-    private static final IMetaManager metaManager = DefaultMetaManager.getInstance();
+  private static final IMetaManager metaManager = DefaultMetaManager.getInstance();
 
-    private final Map<CollectorType, AbstractStatisticsCollector> collectorMap = new HashMap<>();
+  private final Map<CollectorType, AbstractStatisticsCollector> collectorMap = new HashMap<>();
 
-    private static class StatisticsCollectorHolder {
-        private static final StatisticsBroadcaster instance = new StatisticsBroadcaster();
+  private static class StatisticsCollectorHolder {
+    private static final StatisticsBroadcaster instance = new StatisticsBroadcaster();
+  }
+
+  public static StatisticsBroadcaster getInstance() {
+    return StatisticsCollectorHolder.instance;
+  }
+
+  private StatisticsBroadcaster() {
+    List<CollectorType> collectorTypes =
+        Arrays.asList(
+            CollectorType.ParseStage,
+            CollectorType.LogicalStage,
+            CollectorType.PhysicalStage,
+            CollectorType.ExecuteStage);
+    for (CollectorType collectorType : collectorTypes) {
+      collectorMap.put(collectorType, new StageInfoCollector(collectorType));
     }
+    collectorMap.put(CollectorType.OperatorInfo, new OperatorInfoCollector());
+    collectorMap.put(CollectorType.WriteInfo, new WriteInfoCollector());
+  }
 
-    public static StatisticsBroadcaster getInstance() {
-        return StatisticsCollectorHolder.instance;
+  @Override
+  protected void broadcasting() {
+    collectorMap.forEach((k, v) -> v.broadcastStatistics());
+    if (config.isEnableStatisticsSync()) { // sync statistics to meta
+      WriteInfoCollector writeInfoCollector =
+          (WriteInfoCollector) collectorMap.get(CollectorType.WriteInfo);
+      OperatorInfoCollector operatorInfoCollector =
+          (OperatorInfoCollector) collectorMap.get(CollectorType.OperatorInfo);
+      StatisticMeta statisticMeta =
+          new StatisticMeta(
+              config.getIp(),
+              config.getPort(),
+              writeInfoCollector.getCount(),
+              writeInfoCollector.getSpan(),
+              writeInfoCollector.getPointsCount(),
+              new HashMap<>(operatorInfoCollector.getOperatorCounterMap()),
+              new HashMap<>(operatorInfoCollector.getOperatorSpanMap()),
+              new HashMap<>(operatorInfoCollector.getOperatorRowsCountMap()));
+      metaManager.updateStatistics(statisticMeta);
     }
+  }
 
-    private StatisticsBroadcaster() {
-        List<CollectorType> collectorTypes =
-            Arrays.asList(
-                CollectorType.ParseStage,
-                CollectorType.LogicalStage,
-                CollectorType.PhysicalStage,
-                CollectorType.ExecuteStage);
-        for (CollectorType collectorType : collectorTypes) {
-            collectorMap.put(collectorType, new StageInfoCollector(collectorType));
-        }
-        collectorMap.put(CollectorType.OperatorInfo, new OperatorInfoCollector());
-        collectorMap.put(CollectorType.WriteInfo, new WriteInfoCollector());
-    }
+  public Processor getPreProcessor(CollectorType type) {
+    return collectorMap.get(type).getPreProcessor();
+  }
 
-    @Override
-    protected void broadcasting() {
-        collectorMap.forEach((k, v) -> v.broadcastStatistics());
-        if (config.isEnableStatisticsSync()) { // sync statistics to meta
-            WriteInfoCollector writeInfoCollector =
-                (WriteInfoCollector) collectorMap.get(CollectorType.WriteInfo);
-            OperatorInfoCollector operatorInfoCollector =
-                (OperatorInfoCollector) collectorMap.get(CollectorType.OperatorInfo);
-            StatisticMeta statisticMeta =
-                new StatisticMeta(
-                    config.getIp(),
-                    config.getPort(),
-                    writeInfoCollector.getCount(),
-                    writeInfoCollector.getSpan(),
-                    writeInfoCollector.getPointsCount(),
-                    new HashMap<>(operatorInfoCollector.getOperatorCounterMap()),
-                    new HashMap<>(operatorInfoCollector.getOperatorSpanMap()),
-                    new HashMap<>(operatorInfoCollector.getOperatorRowsCountMap()));
-            metaManager.updateStatistics(statisticMeta);
-        }
-    }
-
-    public Processor getPreProcessor(CollectorType type) {
-        return collectorMap.get(type).getPreProcessor();
-    }
-
-    public Processor getPostProcessor(CollectorType type) {
-        return collectorMap.get(type).getPostProcessor();
-    }
+  public Processor getPostProcessor(CollectorType type) {
+    return collectorMap.get(type).getPostProcessor();
+  }
 }
