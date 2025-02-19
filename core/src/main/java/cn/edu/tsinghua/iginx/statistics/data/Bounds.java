@@ -1,5 +1,9 @@
 package cn.edu.tsinghua.iginx.statistics.data;
 
+import cn.edu.tsinghua.iginx.engine.shared.data.Value;
+import cn.edu.tsinghua.iginx.thrift.DataType;
+import javafx.util.Pair;
+
 import java.io.*;
 import java.util.Objects;
 
@@ -26,6 +30,57 @@ public class Bounds<T extends Comparable<T> & Serializable> implements Serializa
 
   public Class<T> getType() {
     return type;
+  }
+
+  public DataType getDataType() {
+    switch (type.getName()) {
+      case "java.lang.Integer":
+        return DataType.INTEGER;
+      case "java.lang.Long":
+        return DataType.LONG;
+      case "java.lang.Double":
+        return DataType.DOUBLE;
+      case "java.lang.Float":
+        return DataType.FLOAT;
+      case "java.lang.String":
+        return DataType.BINARY;
+      default:
+        throw new IllegalArgumentException("unknown data type: " + type.getName());
+    }
+  }
+
+  public Value getLowerValue() {
+    switch (type.getName()) {
+      case "java.lang.Integer":
+        return new Value((Integer) lowerBound);
+      case "java.lang.Long":
+        return new Value((Long) lowerBound);
+      case "java.lang.Double":
+        return new Value((Double) lowerBound);
+      case "java.lang.Float":
+        return new Value((Float) lowerBound);
+      case "java.lang.String":
+        return new Value((String) lowerBound);
+      default:
+        throw new IllegalArgumentException("unknown data type: " + type.getName());
+    }
+  }
+
+  public Value getUpperValue() {
+    switch (type.getName()) {
+      case "java.lang.Integer":
+        return new Value((Integer) upperBound);
+      case "java.lang.Long":
+        return new Value((Long) upperBound);
+      case "java.lang.Double":
+        return new Value((Double) upperBound);
+      case "java.lang.Float":
+        return new Value((Float) upperBound);
+      case "java.lang.String":
+        return new Value((String) upperBound);
+      default:
+        throw new IllegalArgumentException("unknown data type: " + type.getName());
+    }
   }
 
   // Getter for lower bound.
@@ -69,6 +124,10 @@ public class Bounds<T extends Comparable<T> & Serializable> implements Serializa
   // Factory methods for creating bounds with specific types.
   public static Bounds<Integer> intBounds(int lower, int upper) {
     return new Bounds<>(lower, upper, Integer.class);
+  }
+
+  public static Bounds<Long> longBounds(long lower, long upper) {
+    return new Bounds<>(lower, upper, Long.class);
   }
 
   public static Bounds<Double> doubleBounds(double lower, double upper) {

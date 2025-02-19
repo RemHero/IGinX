@@ -150,6 +150,8 @@ public class TableStatTest {
             add("us2.s1");
             add("us1.s2");
             add("us2.s2");
+            add("us3.s1");
+            add("us3.s2");
           }
         };
     List<DataType> dataTypeList =
@@ -158,6 +160,8 @@ public class TableStatTest {
             add(DataType.LONG);
             add(DataType.LONG);
             add(DataType.BINARY);
+            add(DataType.DOUBLE);
+            add(DataType.LONG);
             add(DataType.DOUBLE);
           }
         };
@@ -172,7 +176,10 @@ public class TableStatTest {
               (long) i,
               (long) i + 1,
               ("\"" + RandomStringUtils.randomAlphanumeric(10) + "\"").getBytes(),
-              (i + 0.1d)));
+              (i + 0.1d),
+              (long) i + 1,
+              i + 0.1d)
+          );
     }
 
     Controller.writeRowsData(
@@ -184,6 +191,38 @@ public class TableStatTest {
         new ArrayList<>(),
         InsertAPIType.Row,
         dummyNoData);
+
+    pathList =
+        new ArrayList<String>() {
+          {
+            add("us3.s2");
+          }
+        };
+    dataTypeList =
+        new ArrayList<DataType>() {
+          {
+            add(DataType.DOUBLE);
+          }
+        };
+    keyList.clear();
+    valuesList.clear();
+    for (int i = 0; i < size; i++) {
+      keyList.add(start + size+i);
+      valuesList.add(
+          Arrays.asList(
+              (double)i + 0.1d)
+      );
+    }
+    Controller.writeRowsData(
+        session,
+        pathList,
+        keyList,
+        dataTypeList,
+        valuesList,
+        new ArrayList<>(),
+        InsertAPIType.Row,
+        dummyNoData);
+
     dummyNoData = false;
   }
 
@@ -239,23 +278,30 @@ public class TableStatTest {
 //    executor.execute(clearData);
   }
 
+//  add("us1.s1");
+//  add("us2.s1");
+//  add("us1.s2");
+//  add("us2.s2");
+//add(DataType.LONG);
+//  add(DataType.LONG);
+//  add(DataType.BINARY);
+//  add(DataType.DOUBLE);
   @Test
   public void showTableStat() {
     TableStatHandler tableStatHandler = new TableStatHandler();
-    tableStatHandler.update("us.d1.s1");
-    System.out.println(tableStatHandler.getStatsTable("us.d1.s1").toString());
+    tableStatHandler.update("us2.s2");
+    System.out.println(tableStatHandler.getStatsTableWithKey("us2.s2").toString());
   }
 
+  // 测试构建的语句每个计算节点的统计信息是否正确
   @Test
   public void showTreeStat() {
     TableStatHandler tableStatHandler = new TableStatHandler();
-    tableStatHandler.update("us.d1.s1");
-    tableStatHandler.update("us.d1.s2");
+    tableStatHandler.update("us1.s1");
+    tableStatHandler.update("us2.s1");
     StatsHandler statsHandler = new StatsHandler();
 
 //    statsHandler.recursiveDeriveStats();
-
-
 
   }
 }

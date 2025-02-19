@@ -26,9 +26,11 @@ import cn.edu.tsinghua.iginx.engine.physical.exception.PhysicalException;
 import cn.edu.tsinghua.iginx.engine.shared.data.Value;
 import cn.edu.tsinghua.iginx.engine.shared.data.read.Header;
 import cn.edu.tsinghua.iginx.engine.shared.data.read.Row;
+import cn.edu.tsinghua.iginx.engine.shared.expr.BaseExpression;
 import cn.edu.tsinghua.iginx.engine.shared.expr.Expression;
 import cn.edu.tsinghua.iginx.engine.shared.function.system.utils.ValueUtils;
 import cn.edu.tsinghua.iginx.engine.shared.operator.filter.*;
+import cn.edu.tsinghua.iginx.sql.utils.ExpressionUtils;
 import cn.edu.tsinghua.iginx.utils.Pair;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -451,4 +453,174 @@ public class FilterUtils {
         });
     return pathFilters;
   }
+
+  // like A & B & C & D
+  public static List<Filter> splitAndFilter(Filter filter) {
+    List<Filter> filters = new ArrayList<>();
+    switch (filter.getType()) {
+      case And:
+        AndFilter andFilter = (AndFilter) filter;
+        for (Filter childFilter : andFilter.getChildren()) {
+          filters.addAll(splitAndFilter(childFilter));
+        }
+        break;
+      default:
+        break;
+    }
+    return filters;
+  }
+  public static boolean checkForStat(Filter filter, String col)  {
+    boolean result = true;
+    switch (filter.getType()) {
+      case Value:
+        return true;
+      case Bool:
+        return true;
+      case Or:
+        OrFilter orFilter = (OrFilter) filter;
+        for (Filter childFilter : orFilter.getChildren()) {
+          result &= checkForStat(childFilter, col);
+        }
+        return result;
+      case And:
+        AndFilter andFilter = (AndFilter) filter;
+        for (Filter childFilter : andFilter.getChildren()) {
+          result &= checkForStat(childFilter, col);
+        }
+        return result;
+      case Not:
+        NotFilter notFilter = (NotFilter) filter;
+        return checkForStat(notFilter.getChild(), col);
+      case Key:
+        // TODO: not sure?
+        return true;
+      case Path:
+        return false;
+      case In:
+        if (((InFilter) filter).getPath().equals(col)) {
+          return true;
+        }
+      case Expr:
+        ExprFilter exprFilter = (ExprFilter) filter;
+        switch (exprFilter.getOp()) {
+          case L:
+          case G:
+          case LE:
+          case GE:
+          case E:
+          case NE:
+            if (ExpressionUtils.isConstantArithmeticExpr(exprFilter.getExpressionA())) {
+              Expression expression = exprFilter.getExpressionB();
+              if (expression.getType() == Expression.ExpressionType.Base) {
+                BaseExpression baseExpression = (BaseExpression) expression;
+                if (baseExpression.getPathName().equals(col) || (baseExpression.hasAlias() && baseExpression.getAlias().equals(col))) {
+                  return exprFilter.getOp() != Op.NE;
+                }
+              }
+            }
+            if (ExpressionUtils.isConstantArithmeticExpr(exprFilter.getExpressionB())) {
+              Expression expression = exprFilter.getExpressionA();
+              if (expression.getType() == Expression.ExpressionType.Base) {
+                BaseExpression baseExpression = (BaseExpression) expression;
+                if (baseExpression.getPathName().equals(col) || (baseExpression.hasAlias() && baseExpression.getAlias().equals(col))) {
+                  return exprFilter.getOp() != Op.NE;
+                }
+              }
+            }
+        }
+    }
+    return false;
+  }
+
+  public static boolean equal(Filter filterA, Filter filterB) {
+    if (filterA == null && filterB == null) {
+      return true;
+    }
+    if (filterA == null || filterB == null) {
+      return false;
+    }
+    if (filterA.getType() != filterB.getType()) {
+      return false;
+    }
+    switch (filterA.getType()) {
+        case And:
+            AndFilter andFilterA = (AndFilter) filterA;
+            AndFilter andFilterB = (AndFilter) filterB;
+            if (andFilterA.getChildren().size() != andFilterB.getChildren().size()) {
+                return false;
+            }
+            for (int i = 0; i < andFilterA.getChildren().size(); i++) {
+                if (!equal(andFilterA.getChildren().get(i), andFilterB.getChildren().get(i))) {
+                    return false;
+                }
+            }
+            return true;
+        case Or:
+            OrFilter orFilterA = (OrFilter) filterA;
+            OrFilter orFilterB = (OrFilter) filterB;
+            if (orFilterA.getChildren().size() != orFilterB.getChildren().size()) {
+                return false;
+            }
+            for (int i = 0; i < orFilterA.getChildren().size(); i++) {
+                if (!equal(orFilterA.getChildren().get(i), orFilterB.getChildren().get(i))) {
+                    return false;
+                }
+            }
+            return true;
+        case Not:
+            NotFilter notFilterA = (NotFilter) filterA;
+            NotFilter notFilterB = (NotFilter) filterB;
+            return equal(notFilterA.getChild(), notFilterB.getChild());
+        case Key:
+            KeyFilter keyFilterA = (KeyFilter) filterA;
+            KeyFilter keyFilterB = (KeyFilter) filterB;
+            return keyFilterA.getOp() == keyFilterB.getOp() && keyFilterA.getValue() == keyFilterB.getValue();
+        case Value:
+            ValueFilter valueFilterA = (ValueFilter) filterA;
+            ValueFilter valueFilterB = (ValueFilter) filterB;
+            return valueFilterA.getOp() == valueFilterB.getOp()
+                && valueFilterA.getPath().equals(valueFilterB.getPath())
+                && valueFilterA.getValue().equals(valueFilterB.getValue());
+        case Path:
+            PathFilter pathFilterA = (PathFilter) filterA;
+            PathFilter pathFilterB = (PathFilter) filterB;
+            return pathFilterA.getOp() == pathFilterB.getOp()
+                && pathFilterA.getPathA().equals(pathFilterB.getPathA())
+                && pathFilterA.getPathB().equals(pathFilterB.getPathB());
+        case Bool:
+            BoolFilter boolFilterA = (BoolFilter) filterA;
+            BoolFilter boolFilterB = (BoolFilter) filterB;
+            return boolFilterA.isTrue() == boolFilterB.isTrue();
+        case Expr:
+            ExprFilter exprFilterA = (ExprFilter) filterA;
+            ExprFilter exprFilterB = (ExprFilter) filterB;
+            return exprFilterA.getOp() == exprFilterB.getOp()
+                && exprFilterA.getExpressionA().equals(exprFilterB.getExpressionA())
+                && exprFilterA.getExpressionB().equals(exprFilterB.getExpressionB());
+        case In:
+            InFilter inFilterA = (InFilter) filterA;
+            InFilter inFilterB = (InFilter) filterB;
+            return inFilterA.getInOp() == inFilterB.getInOp()
+                && inFilterA.getPath().equals(inFilterB.getPath())
+                && inFilterA.getValues().equals(inFilterB.getValues());
+        default:
+            return false;
+    }
+  }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

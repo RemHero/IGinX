@@ -53,6 +53,7 @@ import cn.edu.tsinghua.iginx.engine.shared.file.write.ExportCsv;
 import cn.edu.tsinghua.iginx.engine.shared.file.write.ExportFile;
 import cn.edu.tsinghua.iginx.engine.shared.operator.Operator;
 import cn.edu.tsinghua.iginx.engine.shared.operator.visitor.OperatorInfoVisitor;
+import cn.edu.tsinghua.iginx.engine.shared.operator.visitor.TreeInfoVisitor;
 import cn.edu.tsinghua.iginx.engine.shared.processor.*;
 import cn.edu.tsinghua.iginx.exception.StatusCode;
 import cn.edu.tsinghua.iginx.metadata.DefaultMetaManager;
@@ -253,13 +254,18 @@ public class StatementExecutor {
       before(ctx, CollectorType.LogicalStage);
       Operator root = generator.generate(ctx);
 
+      // TODO:LHZ test stats,后续删除
       // test stats
-      // select s1.s2 from us.d1.s1 join us.d1.s2;
-      if (TableStatHandler.flag) {
-        TableStatHandler.flag = false;
-        StatsHandler statsHandler = new StatsHandler();
-        statsHandler.recursiveDeriveStats(root,null);
-      }
+      // select s1,s2 from us1 join us2;
+//      if (TableStatHandler.flag) {
+//        TreeInfoVisitor treeInfoVisitor = new TreeInfoVisitor();
+//        root.accept(treeInfoVisitor);
+//        System.out.println(treeInfoVisitor.getTreeInfo().toString());
+//
+//        TableStatHandler.flag = false;
+//        StatsHandler statsHandler = new StatsHandler();
+//        statsHandler.recursiveDeriveStats(root,null);
+//      }
 
 
       after(ctx, CollectorType.LogicalStage);

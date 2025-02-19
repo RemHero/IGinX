@@ -3,15 +3,16 @@ package cn.edu.tsinghua.iginx.statistics.handler;
 import cn.edu.tsinghua.iginx.engine.shared.operator.*;
 import cn.edu.tsinghua.iginx.engine.shared.operator.filter.Filter;
 import cn.edu.tsinghua.iginx.engine.shared.operator.type.OuterJoinType;
-import cn.edu.tsinghua.iginx.engine.shared.source.FragmentSource;
 import cn.edu.tsinghua.iginx.engine.shared.source.OperatorSource;
 import cn.edu.tsinghua.iginx.engine.shared.source.Source;
 import cn.edu.tsinghua.iginx.statistics.data.*;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import cn.edu.tsinghua.iginx.utils.StringUtils;
+
+import java.util.*;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+
+import static cn.edu.tsinghua.iginx.statistics.handler.TableStatHandler.KEY_COLUMN_NAME;
 
 /*
  * 注意ExtractColGroups(colGroups [][]*expression.Column)这里的colGroups代表的是从上至下传递下来的所有涉及到的列
@@ -24,8 +25,8 @@ public class StatsHandler {
   // SelectionFactor is the default factor of the selectivity.
   // For example, If we have no idea how to estimate the selectivity
   // of a Selection or a JoinCondition, we can use this default value.
-  private static double DISTINCTFACTOR = 0.8;
-  private static double SELECTIONFACTOR = 0.8;
+  public static double DISTINCTFACTOR = 0.8;
+  public static double SELECTIONFACTOR = 0.8;
 
 
   public StatsInfo recursiveDeriveStats(Operator operator, List<List<String>> colGroups) {
@@ -90,7 +91,9 @@ public class StatsHandler {
       return DeriveStats_((Project) operator, opStats, colGroups);
     } else if (operator instanceof AbstractJoin) {
       return DeriveStats_((AbstractJoin) operator, opStats, colGroups);
-    } else {
+    } else if (operator instanceof Join) {
+      return DeriveStats_((Join) operator, opStats, colGroups);
+    }else {
       return DeriveStats_(op, opStats, colGroups);
     }
   }
@@ -117,11 +120,11 @@ public class StatsHandler {
     return profile;
   }
 
-  private StatsInfo deriveStatsByFilter(Select select, Filter filter, List<String> accessPath) {
-    StatsInfo statsInfo = select.getStatsInfo();
+//  private StatsInfo deriveStatsByFilter(Select select, Filter filter, List<String> accessPath) {
+//    StatsInfo statsInfo = select.getStatsInfo();
 //    selectivity, nodes, err := ds.tableStats.HistColl.Selectivity(ds.ctx, conds, filledPaths)
 //    Double selectivity = statsInfo.getHistColl().selectivity(filter, accessPath);
-  }
+//  }
 
   private StatsInfo DeriveStats_(
       Select select, List<StatsInfo> opStats, List<List<String>> colGroups) {
@@ -129,11 +132,14 @@ public class StatsHandler {
       return select.getStatsInfo();
     }
 
-
     StatsInfo childStats = opStats.get(0);
     Filter filter = select.getFilter();
-    Double selectivity = childStats.getHistColl().selectivity(filter, accessPath);
-
+    if (filter != null) {
+      Double selectivity = childStats.getHistColl().selectivity(filter, null);
+      childStats.scale(selectivity);
+    } else {
+      childStats.scale(SELECTIONFACTOR);
+    }
     return childStats;
   }
 
@@ -156,8 +162,8 @@ public class StatsHandler {
     // 构建HistColl
     if (project.getTableStatistic() == null) {
       TableStatHandler tbStatHandler = new TableStatHandler();
-      // 在逻辑阶段，一般只有一列
-      TableStatistic tableStatistic = tbStatHandler.getStatsTable(project.getPatterns().get(0));
+      // 在逻辑阶段，一般只有一列，但是根据IGinX的设计，需要多余考虑key列
+      TableStatistic tableStatistic = tbStatHandler.getStatsTableWithKey(project.getPatterns().get(0));
       project.setTableStatistic(tableStatistic);
     }
   }
@@ -177,16 +183,26 @@ public class StatsHandler {
           new StatsInfo(tableStatistic.getRowCount(), new TableStatistic(tableStatistic.getColumns()));
 
       for (String col : project.getPatterns()) {
-        ColumnStatistic columnStatistic = tableStatistic.getColumn(col);
-        if (tableStatistic != null) {
+        List<String> cols = dealWithPattern(col,tableStatistic);
+        for(String c:cols) {
+          ColumnStatistic columnStatistic = tableStatistic.getColumn(c);
           if (columnStatistic.getCount() != null) {
             double factor = tableStatistic.getRowCount() / columnStatistic.getCount();
-            profile.getColNDVMap().put(col, columnStatistic.getNDV() * factor);
+            profile.getColNDVMap().put(c, columnStatistic.getNDV() * factor);
+            //TODO:LHZ columnStatistic.getNDV()才为准确值
+            profile.addCardinality(c, columnStatistic.getCount() * factor);
           } else {
-            profile.getColNDVMap().put(col, profile.getCount() * DISTINCTFACTOR);
+            profile.getColNDVMap().put(c, profile.getCount() * DISTINCTFACTOR);
+            profile.addCardinality(c, columnStatistic.getCount() * DISTINCTFACTOR);
           }
         }
       }
+      // deal with key column
+      ColumnStatistic columnStatistic = tableStatistic.getColumn(KEY_COLUMN_NAME);
+      double factor = tableStatistic.getRowCount() / columnStatistic.getCount();
+      profile.getColNDVMap().put(KEY_COLUMN_NAME, columnStatistic.getNDV() * factor);
+      //TODO:LHZ columnStatistic.getNDV()才为准确值
+      profile.addCardinality(KEY_COLUMN_NAME, columnStatistic.getCount() * factor);
 
       project.setStatsInfo(profile);
       return profile;
@@ -208,6 +224,56 @@ public class StatsHandler {
     return profile;
   }
 
+  private List<String> dealWithPattern(String pattern, TableStatistic tableStatistic) {
+    List<String> cols = new ArrayList<>();
+    if (StringUtils.isPattern(pattern)) {
+      Set<String> colSet = tableStatistic.getColumns().keySet();
+      for (String col : colSet) {
+        if (Pattern.matches(StringUtils.reformatPath(pattern), col)) {
+          cols.add(col);
+        }
+      }
+    } else {
+      cols.add(pattern);
+    }
+    return cols;
+  }
+
+  // TODO:LHZ maybe deal with join by key?? and join by key 没有实现，jion本身也支持其他joinby字符
+  private StatsInfo DeriveStats_(Join join, List<StatsInfo> opStats, List<List<String>> colGroups) {
+    StatsInfo leftStats = opStats.get(0);
+    StatsInfo rightStats = opStats.get(1);
+    Double outCnt = 0.0;
+
+    if (join.getStatsInfo() != null) {
+      // Reload GroupNDVs since colGroups may have changed.
+      return join.getStatsInfo();
+    }
+
+    outCnt = RowCountHandler.estimateFullJoinRowCount(false, leftStats, rightStats, Arrays.asList(join.getJoinBy()));
+    Map<String, Double> colsNDV = new HashMap<>();
+    StatsInfo joinStats = new StatsInfo(outCnt.longValue());
+    for (String col : leftStats.getColNDVMap().keySet()) {
+      Map<String, Double> leftColsNDV = leftStats.getColNDVMap();
+      colsNDV.put(col, Math.min(leftColsNDV.get(col), outCnt));
+      joinStats.addCardinality(col, Math.min(leftColsNDV.get(col), outCnt));
+    }
+    for (String col : rightStats.getColNDVMap().keySet()) {
+      Map<String, Double> rightColsNDV = rightStats.getColNDVMap();
+      colsNDV.put(col, Math.min(rightColsNDV.get(col), outCnt));
+      joinStats.addCardinality(col, Math.min(rightColsNDV.get(col), outCnt));
+    }
+
+    // deal with key column
+    colsNDV.put(KEY_COLUMN_NAME, outCnt);
+    joinStats.addCardinality(KEY_COLUMN_NAME, outCnt)
+    ;
+    joinStats.setColNDVs(colsNDV);
+    join.setStatsInfo(joinStats);
+
+    return joinStats;
+  }
+
   // DeriveStats implement LogicalPlan DeriveStats interface.
   // If the type of join is SemiJoin, the selectivity of it will be same as selection's.
   // If the type of join is LeftOuterSemiJoin, it will not add or remove any row. The last column is
@@ -218,6 +284,7 @@ public class StatsHandler {
   // This is a quite simple strategy: We assume every bucket of relation which will participate join
   // has the same number of rows, and apply cross join for
   // every matched bucket.
+  // TODO:LHZ join by key的话其join key为key，需要考虑对于join的等值处理；对于cardinality没有处理完全
   private StatsInfo DeriveStats_(AbstractJoin join, List<StatsInfo> opStats, List<List<String>> colGroups) {
     StatsInfo leftStats = opStats.get(0);
     StatsInfo rightStats = opStats.get(1);
@@ -230,7 +297,7 @@ public class StatsHandler {
     }
 
     if (join instanceof CrossJoin) {
-      outCnt = RowCountHandler.estimateFullJoinRowCount(true, leftStats, rightStats, null);
+      outCnt = RowCountHandler.estimateFullJoinRowCount(true, leftStats, rightStats, new ArrayList<>());
     } else if (join instanceof InnerJoin) {
       InnerJoin IJoin = (InnerJoin) join;
       List<String> keys = IJoin.getJoinColumns();
@@ -248,17 +315,22 @@ public class StatsHandler {
       }
     }
     Map<String, Double> colsNDV = new HashMap<>();
-
+    StatsInfo joinStats = new StatsInfo(outCnt.longValue());
     for (String col : leftStats.getColNDVMap().keySet()) {
       Map<String, Double> leftColsNDV = leftStats.getColNDVMap();
       colsNDV.put(col, Math.min(leftColsNDV.get(col), outCnt));
+      joinStats.addCardinality(col, Math.min(leftColsNDV.get(col), outCnt));
     }
     for (String col : rightStats.getColNDVMap().keySet()) {
       Map<String, Double> rightColsNDV = rightStats.getColNDVMap();
       colsNDV.put(col, Math.min(rightColsNDV.get(col), outCnt));
+      joinStats.addCardinality(col, Math.min(rightColsNDV.get(col), outCnt));
     }
+    // deal with key column
+    joinStats.addCardinality(KEY_COLUMN_NAME, outCnt);
+    colsNDV.put(KEY_COLUMN_NAME, outCnt);
 
-    StatsInfo joinStats = new StatsInfo(outCnt.longValue(), colsNDV);
+    joinStats.setColNDVs(colsNDV);
     // Reload GroupNDVs since colGroups may have changed.
     joinStats.setGroupNDVs(getGroupNDVs(join, opStats));
     join.setStatsInfo(joinStats);

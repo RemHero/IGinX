@@ -8,6 +8,11 @@ public class StatsInfo {
 
   private TableStatistic histColl;
   private List<GroupNDV> groupNDVs;
+  private Map<String, Double> cardinality;
+
+  public StatsInfo(long rowCount) {
+    this.count = rowCount;
+  }
 
   public StatsInfo(long rowCount, Map<String, Double> colNDVs) {
     this(rowCount, colNDVs, null, null);
@@ -68,6 +73,21 @@ public class StatsInfo {
     this.histColl = histColl;
   }
 
+  public void addCardinality(String col, Double value) {
+    if (cardinality == null) {
+      cardinality = new HashMap<>();
+    }
+    if (cardinality.containsKey(col) && cardinality.get(col) < value) {
+      cardinality.put(col, value);
+    } else if (!cardinality.containsKey(col)) {
+      cardinality.put(col, value);
+    }
+  }
+
+  public double getCardinality(String col) {
+    return cardinality.getOrDefault(col, 0.0);
+  }
+
   public StatsInfo scale(double factor) {
     Map<String, Double> scaledColNDVs = new HashMap<>();
     for (Map.Entry<String, Double> entry : colNDVs.entrySet()) {
@@ -81,6 +101,11 @@ public class StatsInfo {
     }
 
     return new StatsInfo((long) (count * factor), scaledColNDVs, histColl, scaledGroupNDVs);
+  }
+
+  public Void setColNDVs(Map<String, Double> colNDVs) {
+    this.colNDVs = colNDVs;
+    return null;
   }
 
   public StatsInfo scaleByExpectCnt(double expectCnt) {

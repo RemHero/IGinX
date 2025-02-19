@@ -1,5 +1,6 @@
 package cn.edu.tsinghua.iginx.statistics.handler;
 
+import cn.edu.tsinghua.iginx.engine.shared.operator.filter.Filter;
 import cn.edu.tsinghua.iginx.statistics.data.GroupNDV;
 import cn.edu.tsinghua.iginx.statistics.data.StatsInfo;
 import java.util.List;
@@ -19,7 +20,10 @@ public class NdvHandler {
         ndv = Math.max(ndv, colNDV);
       }
     }
-
+    for (String col : cols) {
+      Double colNDV = profile.getCardinality(col);
+      ndv = Math.max(ndv, colNDV);
+    }
     return ndv;
   }
 }

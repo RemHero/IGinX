@@ -1,8 +1,15 @@
 package cn.edu.tsinghua.iginx.statistics.data;
 
+import cn.edu.tsinghua.iginx.engine.shared.data.Value;
+import cn.edu.tsinghua.iginx.statistics.util.BoundsUntil;
+import cn.edu.tsinghua.iginx.statistics.util.ValueUtil;
+import javafx.util.Pair;
+
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
+
+import static cn.edu.tsinghua.iginx.statistics.util.BoundsUntil.LowerBound;
 
 public class Histogram {
   private List<Bounds> bounds = new ArrayList<>();
@@ -66,6 +73,77 @@ public class Histogram {
     this.correlation = correlation;
   }
 
+  public double totalRowCount() {
+    if (buckets.isEmpty()) {
+      return 0;
+    }
+    return buckets.get(buckets.size() - 1).getCount() + nullCount;
+  }
+
+  // lessRowCount estimates the row count where the column less than value.
+  public double lessRowCount(Value value) {
+    // all the values is null
+    if (buckets.isEmpty()) {
+      return 0;
+    }
+    Pair<Integer, Boolean> result = LowerBound(bounds, value);
+    int idx = result.getKey();
+    boolean match = result.getValue();
+    if (idx == bounds.size()-1) {
+      return totalRowCount();
+    }
+    double curCount = buckets.get(idx).getCount();
+    double curRepeat = buckets.get(idx).getRepeat();
+    double preCount = 0;
+    if (idx > 0) {
+      preCount = buckets.get(idx - 1).getCount();
+    }
+    if (idx==1) {
+      if (match) {
+        return curCount-curRepeat;
+      }
+      // TODO:LHZ 这里可以好好考虑为什么这么写
+      return preCount+calcFraction(idx,value)*(curCount-curRepeat-preCount);
+    }
+    return 0;
+  }
+
+  double calcFraction(int idx, Value value) {
+    Bounds bounds = this.bounds.get(idx);
+    if (ValueUtil.compareTo(bounds.getLowerValue(),bounds.getUpperValue()) >= 0) {
+      return 0.5;
+    }
+    if (ValueUtil.compareTo(value,bounds.getLowerValue()) <= 0) {
+      return 0;
+    }
+    if (ValueUtil.compareTo(value,bounds.getUpperValue()) >= 0) {
+      return 1;
+    }
+    Value lower = bounds.getLowerValue();
+    Value upper = bounds.getUpperValue();
+    return (ValueUtil.minus(value,lower))/(ValueUtil.minus(upper,lower));
+  }
+
+  public double equalRowCount(Value value) {
+    Pair<Integer, Boolean> result = BoundsUntil.LowerBound(bounds, value);
+    int idx = result.getKey();
+    boolean match = result.getValue();
+    // Since we store the lower and upper bound together, if the index is an odd number, then it points to a upper bound.
+    if (idx % 2 == 1) {
+      if (match) {
+        return buckets.get(idx / 2).getRepeat();
+      }
+      return totalRowCount() / ndv;
+    }
+    if (match) {
+      if (ValueUtil.compareTo(bounds.get(idx).getLowerValue(),bounds.get(idx+1).getLowerValue()) == 0) {
+        return buckets.get(idx / 2).getRepeat();
+      }
+      return totalRowCount() / ndv;
+    }
+    return 0;
+  }
+
   public void updateLastBucket(
       int bucketIdx, Object value, long count, long repeat, boolean needBucketNDV) {
     int len = buckets.size();
@@ -87,6 +165,7 @@ public class Histogram {
     // 检查是否实现了 Comparable 和 Serializable 接口
     if (!(lowerObj instanceof Comparable && lowerObj instanceof Serializable)
         || !(upperObj instanceof Comparable && upperObj instanceof Serializable)) {
+      //TODO:LHZ之后再考虑持久化的问题
       throw new IllegalArgumentException(
           "Lower and upper bounds must implement Comparable and Serializable");
     }
@@ -128,6 +207,12 @@ public class Histogram {
   // 获取边界数据块
   public List<Bounds> getBounds() {
     return bounds;
+  }
+
+  public Range getRange() {
+    Value leftLowV = bounds.get(0).getLowerValue();
+    Value leftUpV = bounds.get(bounds.size() - 1).getUpperValue();
+    return new Range(leftLowV, leftUpV);
   }
 
   // 设置边界数据块

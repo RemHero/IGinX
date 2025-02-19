@@ -28,6 +28,7 @@ public class TableStatHandler {
   final String DATA_SEARCH = "select";
   final String COLUMN_SCAN = "select %s from %s;";
   final String STATISTICS_QUERY = "select";
+  public static final String KEY_COLUMN_NAME = "key";
   final int MAX_BUCKET_SIZE = 20;
   final int MAX_SAMPLE_SIZE = 2000;
   StatementExecutor executor = StatementExecutor.getInstance();
@@ -80,17 +81,21 @@ public class TableStatHandler {
     }
     List<ByteBuffer> valuesList = result.getValuesList();
     List<ByteBuffer> bitmapList = result.getBitmapList();
-    List<DataType> dataTypeList = result.getDataTypeList();
+    List<DataType> dataTypeList = new ArrayList<>(result.getDataTypeList());
     // nextRow 只会返回本地的 row，如果本地没有，在进行 hasMore 操作时候，就一定也已经取回来了
     ByteBuffer valuesBuffer = valuesList.get(index);
     ByteBuffer bitmapBuffer = bitmapList.get(index);
     Bitmap bitmap = new Bitmap(dataTypeList.size(), bitmapBuffer.array());
-    Object[] values = new Object[dataTypeList.size()];
+    //最后一个对应key列
+    Object[] values = new Object[dataTypeList.size()+1];
     for (int i = 0; i < dataTypeList.size(); i++) {
       if (bitmap.get(i)) {
         values[i] = getValueFromByteBufferByDataType(valuesBuffer, dataTypeList.get(i));
       }
     }
+    // deal with key column
+    values[dataTypeList.size()] = result.getKeys()[index];
+    dataTypeList.add(DataType.LONG);
     return new Pair<>(values, dataTypeList);
   }
 
@@ -99,6 +104,8 @@ public class TableStatHandler {
     for (int i = 0; i < result.getDataTypeList().size(); i++) {
       collectors.add(new SampleCollector(MAX_SAMPLE_SIZE));
     }
+    // for key column这里需要注意
+    collectors.add(new SampleCollector(MAX_SAMPLE_SIZE));
 
     // 采样
     int index = 0;
@@ -234,16 +241,23 @@ public class TableStatHandler {
     List<SampleCollector> collectors = collectColumnStats(result);
     Map<String, ColumnStatistic> columns = new HashMap<>();
 
-    // TODO: 未来考虑 FMSketch 的ndv值
+    // TODO:LHZ 未来考虑 FMSketch 的ndv值
     int maxCount = -1;
     for (int i = 0; i < collectors.size(); i++) {
       SampleCollector collector = collectors.get(i);
-      String path = result.getPaths().get(i);
+      String path = null;
+      int ndv = 0;
+      if (i==collectors.size()-1) {
+        path = KEY_COLUMN_NAME;
+        ndv = collector.getSamples().size();
+      } else {
+        path = result.getPaths().get(i);
+      }
       int count = collector.getCount();
       maxCount = Math.max(maxCount, count);
       int nullCount = collector.getNullCount();
       int totalSize = collector.getTotalSize();
-      int ndv = 0;
+
       List<SampleCollector.SampleItem> samples = collector.getSamples();
 
       if (count == 0 || samples.size() == 0) {
@@ -294,7 +308,7 @@ public class TableStatHandler {
   }
 
   // 根据列名name获取表的统计信息
-  public TableStatistic getStatsTable(String name) {
+  public TableStatistic getStatsTableWithKey(String name) {
     if (cache == null || cache.isEmpty()) {
       loadCache();
     }
