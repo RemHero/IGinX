@@ -23,6 +23,7 @@ import static cn.edu.tsinghua.iginx.metadata.utils.IdUtils.generateDummyStorageU
 
 import cn.edu.tsinghua.iginx.conf.Config;
 import cn.edu.tsinghua.iginx.conf.ConfigDescriptor;
+import cn.edu.tsinghua.iginx.cost.entity.CostInfo;
 import cn.edu.tsinghua.iginx.engine.shared.data.write.*;
 import cn.edu.tsinghua.iginx.metadata.entity.*;
 import cn.edu.tsinghua.iginx.policy.simple.ColumnCalDO;
@@ -95,6 +96,7 @@ public class DefaultMetaCache implements IMetaCache {
   private final Map<String, TransformTaskMeta> transformTaskMetaMap;
 
   private final Map<String, StatisticMeta> statisticMetaMap;
+  private final Map<String, CostInfo> costMap;
 
   private DefaultMetaCache() {
     if (enableFragmentCacheControl) {
@@ -128,6 +130,7 @@ public class DefaultMetaCache implements IMetaCache {
     // transform task 相关
     transformTaskMetaMap = new ConcurrentHashMap<>();
     statisticMetaMap = new ConcurrentHashMap<>();
+    costMap = new ConcurrentHashMap<>();
   }
 
   public static DefaultMetaCache getInstance() {
@@ -978,8 +981,18 @@ public class DefaultMetaCache implements IMetaCache {
   }
 
   @Override
+  public void addOrUpdateCost(CostInfo costInfo) {
+    costMap.put(costInfo.getIpAndPort(), costInfo);
+  }
+
+  @Override
   public List<StatisticMeta> getIGinXStatistics() {
     return new ArrayList<>(statisticMetaMap.values());
+  }
+
+  @Override
+  public List<CostInfo> getCosts() {
+    return new ArrayList<>(costMap.values());
   }
 
   @Override

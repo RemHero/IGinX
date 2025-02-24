@@ -19,6 +19,7 @@
  */
 package cn.edu.tsinghua.iginx.metadata.cache;
 
+import cn.edu.tsinghua.iginx.cost.entity.CostInfo;
 import cn.edu.tsinghua.iginx.metadata.entity.*;
 import cn.edu.tsinghua.iginx.policy.simple.ColumnCalDO;
 import cn.edu.tsinghua.iginx.sql.statement.InsertStatement;
@@ -148,5 +149,9 @@ public interface IMetaCache {
 
   void addOrUpdateIGinXStatistics(StatisticMeta statisticMeta);
 
+  default void addOrUpdateCost(CostInfo costInfo) {};
+
   List<StatisticMeta> getIGinXStatistics();
+
+  List<CostInfo> getCosts();
 }

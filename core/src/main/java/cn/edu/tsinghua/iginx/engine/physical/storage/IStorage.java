@@ -40,6 +40,17 @@ public interface IStorage {
   /** 测试数据库连接 */
   boolean testConnection(StorageEngineMeta meta);
 
+  default Integer getConnectionNum() {
+    return 0;
+  }
+
+  default Integer getMaxConnectionNum() {
+    return 0;
+  }
+
+  default void updateConnNum(int num) {
+  }
+
   /** 对非叠加分片查询数据 */
   TaskExecuteResult executeProject(Project project, DataArea dataArea);
 

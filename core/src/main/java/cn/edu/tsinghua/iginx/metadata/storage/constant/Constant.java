@@ -44,6 +44,10 @@ public class Constant {
 
   public static final String STATISTICS_IGINX_LOCK_NODE = "/lock/statistics/iginx";
 
+  public static final String COST_IGINX_PREFIX = "/cost/iginx";
+
+  public static final String COST_IGINX_LOCK_NODE = "/lock/cost/iginx";
+
   public static final String STATISTICS_FRAGMENT_REQUESTS_PREFIX_READ =
       "/statistics/fragment/requests/read";
 

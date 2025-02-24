@@ -21,6 +21,8 @@ package cn.edu.tsinghua.iginx.engine.physical.storage.execute;
 
 import cn.edu.tsinghua.iginx.auth.SessionManager;
 import cn.edu.tsinghua.iginx.conf.ConfigDescriptor;
+import cn.edu.tsinghua.iginx.cost.CostCollector;
+import cn.edu.tsinghua.iginx.cost.FactorCalculator;
 import cn.edu.tsinghua.iginx.engine.physical.exception.NonExecutablePhysicalTaskException;
 import cn.edu.tsinghua.iginx.engine.physical.exception.PhysicalException;
 import cn.edu.tsinghua.iginx.engine.physical.exception.TooManyPhysicalTasksException;
@@ -436,6 +438,7 @@ public class StoragePhysicalTaskExecutor {
             .get(replicaDispatcher.chooseReplica(task))
             .addTask(task); // 在优化策略提供了选择器的情况下，利用选择器提供的结果
       }
+      CostCollector.collectStorageCost(task.getTargetFragment().getMasterStorageUnit().getStorageEngineId(), (Project)task.getOperators().get(0), false);
     }
   }
 

@@ -19,6 +19,7 @@
  */
 package cn.edu.tsinghua.iginx.metadata.storage;
 
+import cn.edu.tsinghua.iginx.cost.entity.CostInfo;
 import cn.edu.tsinghua.iginx.metadata.cache.IMetaCache;
 import cn.edu.tsinghua.iginx.metadata.entity.*;
 import cn.edu.tsinghua.iginx.metadata.exception.MetaStorageException;
@@ -218,6 +219,14 @@ public interface IMetaStorage {
   void registerStatisticsChangeHook(IGinXStatisticsHook hook);
 
   void updateStatistics(StatisticMeta statisticMeta) throws MetaStorageException;
+  default void updateCost(CostInfo costInfo) throws MetaStorageException {
+  }
 
-  List<StatisticMeta> loadStatisticsMeta() throws MetaStorageException;
+  default List<StatisticMeta> loadStatisticsMeta() throws MetaStorageException {
+    return null;
+  }
+
+  default List<CostInfo> loadCosts() throws MetaStorageException {
+    return  null;
+  }
 }

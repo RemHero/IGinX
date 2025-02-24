@@ -24,6 +24,7 @@ import cn.edu.tsinghua.iginx.engine.physical.exception.PhysicalException;
 import cn.edu.tsinghua.iginx.metadata.entity.ColumnsInterval;
 import cn.edu.tsinghua.iginx.metadata.entity.KeyInterval;
 import cn.edu.tsinghua.iginx.metadata.entity.StorageEngineMeta;
+import cn.edu.tsinghua.iginx.resource.ConnResourceManager;
 import cn.edu.tsinghua.iginx.thrift.StorageEngineType;
 import cn.edu.tsinghua.iginx.utils.Pair;
 import java.io.IOException;
@@ -145,6 +146,7 @@ public class StorageManager {
                   TimeUnit.SECONDS,
                   new SynchronousQueue<>());
           storageMap.put(meta.getId(), new Pair<>(storage, dispatcher));
+          ConnResourceManager.updateConn(meta.getId(), storage.getMaxConnectionNum());
         }
       } else {
         LOGGER.error("Connection test for {}:{} failed", engine, meta);

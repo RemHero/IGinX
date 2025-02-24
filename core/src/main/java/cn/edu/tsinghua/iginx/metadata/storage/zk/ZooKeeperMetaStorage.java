@@ -25,6 +25,7 @@ import static cn.edu.tsinghua.iginx.metadata.utils.IdUtils.generateId;
 import static cn.edu.tsinghua.iginx.metadata.utils.ReshardStatus.*;
 
 import cn.edu.tsinghua.iginx.conf.ConfigDescriptor;
+import cn.edu.tsinghua.iginx.cost.entity.CostInfo;
 import cn.edu.tsinghua.iginx.metadata.cache.IMetaCache;
 import cn.edu.tsinghua.iginx.metadata.entity.*;
 import cn.edu.tsinghua.iginx.metadata.exception.MetaStorageException;
@@ -1469,6 +1470,33 @@ public class ZooKeeperMetaStorage implements IMetaStorage {
   }
 
   @Override
+  public void updateCost(CostInfo costInfo) throws MetaStorageException {
+    InterProcessMutex mutex = new InterProcessMutex(this.client, COST_IGINX_LOCK_NODE);
+    try {
+      mutex.acquire();
+      String path = COST_IGINX_PREFIX + "/" + costInfo.getIpAndPort();
+      if (this.client.checkExists().forPath(path) == null) {
+        this.client
+            .create()
+            .creatingParentsIfNeeded()
+            .withMode(CreateMode.PERSISTENT)
+            .forPath(path, JsonUtils.toJson(costInfo));
+      } else {
+        this.client.setData().forPath(path, JsonUtils.toJson(costInfo));
+      }
+    } catch (Exception e) {
+      throw new MetaStorageException("get error when update iginx statistics", e);
+    } finally {
+      try {
+        mutex.release();
+      } catch (Exception e) {
+        throw new MetaStorageException(
+            "get error when release interprocess lock for " + COST_IGINX_LOCK_NODE, e);
+      }
+    }
+  }
+
+  @Override
   public List<StatisticMeta> loadStatisticsMeta() throws MetaStorageException {
     InterProcessMutex mutex = new InterProcessMutex(client, STATISTICS_IGINX_LOCK_NODE);
     try {
@@ -1500,6 +1528,42 @@ public class ZooKeeperMetaStorage implements IMetaStorage {
       } catch (Exception e) {
         throw new MetaStorageException(
             "get error when release interprocess lock for " + STATISTICS_IGINX_LOCK_NODE, e);
+      }
+    }
+  }
+
+  @Override
+  public List<CostInfo> loadCosts() throws MetaStorageException {
+    InterProcessMutex mutex = new InterProcessMutex(client, COST_IGINX_LOCK_NODE);
+    try {
+      mutex.acquire();
+      List<CostInfo> costInfos = new ArrayList<>();
+      if (client.checkExists().forPath(COST_IGINX_PREFIX) == null) {
+        // 当前还没有数据，创建父节点，然后不需要解析数据
+        client.create().withMode(CreateMode.PERSISTENT).forPath(COST_IGINX_PREFIX);
+      } else {
+        List<String> children = client.getChildren().forPath(COST_IGINX_PREFIX);
+        for (String childName : children) {
+          byte[] data = client.getData().forPath(COST_IGINX_PREFIX + "/" + childName);
+          CostInfo costInfo = JsonUtils.fromJson(data, CostInfo.class);
+          if (costInfo == null) {
+            LOGGER.error(
+                "resolve data from " + COST_IGINX_PREFIX + "/" + childName + " error");
+            continue;
+          }
+          costInfos.add(costInfo);
+        }
+      }
+      registerIGinXStatisticsListener();
+      return costInfos;
+    } catch (Exception e) {
+      throw new MetaStorageException("get error when load iginx statistics", e);
+    } finally {
+      try {
+        mutex.release();
+      } catch (Exception e) {
+        throw new MetaStorageException(
+            "get error when release interprocess lock for " + COST_IGINX_LOCK_NODE, e);
       }
     }
   }

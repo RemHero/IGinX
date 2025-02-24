@@ -8,6 +8,7 @@ public class StatsInfo {
 
   private TableStatistic histColl;
   private List<GroupNDV> groupNDVs;
+  // column -> cardinality
   private Map<String, Double> cardinality;
 
   public StatsInfo(long rowCount) {

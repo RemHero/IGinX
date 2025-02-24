@@ -65,6 +65,7 @@ public class RequestContext {
   private boolean isRemoteUDF;
 
   private String warningMsg;
+  private boolean isStatistic=false;
 
   private void init() {
     this.id = SnowFlakeUtils.getInstance().nextId();
@@ -132,5 +133,13 @@ public class RequestContext {
 
   public String getWarningMsg() {
     return warningMsg;
+  }
+
+  public void setIsStatistic(boolean isStatistic) {
+    this.isStatistic = isStatistic;
+  }
+
+  public boolean isStatistic() {
+    return isStatistic;
   }
 }

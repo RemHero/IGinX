@@ -27,6 +27,7 @@ import static cn.edu.tsinghua.iginx.utils.HostUtils.isValidHost;
 
 import cn.edu.tsinghua.iginx.conf.ConfigDescriptor;
 import cn.edu.tsinghua.iginx.conf.Constants;
+import cn.edu.tsinghua.iginx.cost.entity.CostInfo;
 import cn.edu.tsinghua.iginx.engine.physical.storage.StorageManager;
 import cn.edu.tsinghua.iginx.metadata.cache.DefaultMetaCache;
 import cn.edu.tsinghua.iginx.metadata.cache.IMetaCache;
@@ -1478,6 +1479,26 @@ public class DefaultMetaManager implements IMetaManager {
   @Override
   public List<StatisticMeta> getStatisticsMetas() {
     return cache.getIGinXStatistics();
+  }
+
+  @Override
+  public void updateCost(CostInfo costInfo) {
+    try {
+      storage.updateCost(costInfo);
+      cache.addOrUpdateCost(costInfo);
+    } catch (MetaStorageException e) {
+      LOGGER.error("encounter error when update Cost", e);
+    }
+  };
+
+  @Override
+  public List<CostInfo> getCost() {
+    try {
+      return  storage.loadCosts();
+    } catch (MetaStorageException e) {
+      LOGGER.error("encounter error when update Cost", e);
+    }
+    return new ArrayList<>();
   }
 
   @Override

@@ -27,6 +27,8 @@ import static cn.edu.tsinghua.iginx.utils.StringUtils.tryParse2Key;
 
 import cn.edu.tsinghua.iginx.conf.Config;
 import cn.edu.tsinghua.iginx.conf.ConfigDescriptor;
+import cn.edu.tsinghua.iginx.cost.CostCollector;
+import cn.edu.tsinghua.iginx.cost.FactorCalculator;
 import cn.edu.tsinghua.iginx.engine.logical.constraint.ConstraintChecker;
 import cn.edu.tsinghua.iginx.engine.logical.constraint.ConstraintCheckerManager;
 import cn.edu.tsinghua.iginx.engine.logical.generator.*;
@@ -65,6 +67,7 @@ import cn.edu.tsinghua.iginx.sql.statement.select.SelectStatement;
 import cn.edu.tsinghua.iginx.sql.statement.select.UnarySelectStatement;
 import cn.edu.tsinghua.iginx.statistics.broadcaster.StatisticsBroadcaster;
 import cn.edu.tsinghua.iginx.statistics.collector.CollectorType;
+import cn.edu.tsinghua.iginx.statistics.data.StatsInfo;
 import cn.edu.tsinghua.iginx.statistics.handler.StatsHandler;
 import cn.edu.tsinghua.iginx.statistics.handler.TableStatHandler;
 import cn.edu.tsinghua.iginx.thrift.AggregateType;
@@ -250,9 +253,17 @@ public class StatementExecutor {
   private void process(RequestContext ctx) throws StatementExecutionException, PhysicalException {
     StatementType type = ctx.getStatement().getType();
     List<LogicalGenerator> generatorList = generatorMap.get(type);
+    StatsHandler statsHandler = new StatsHandler();
+    StatsInfo rootStat = null;
+
     for (LogicalGenerator generator : generatorList) {
       before(ctx, CollectorType.LogicalStage);
       Operator root = generator.generate(ctx);
+
+      if (type == StatementType.SELECT && !ctx.isStatistic()) {
+        rootStat = statsHandler.recursiveDeriveStats(root,null);
+        CostCollector.updateInQueueCost(rootStat.getCount(),true);
+      }
 
       // TODO:LHZ test stats,后续删除
       // test stats
@@ -285,9 +296,11 @@ public class StatementExecutor {
 
         before(ctx, CollectorType.PhysicalStage);
         RowStream stream = engine.execute(ctx, root);
+
         after(ctx, CollectorType.PhysicalStage);
 
-        if (type == StatementType.SELECT) {
+        if (type == StatementType.SELECT && !ctx.isStatistic()) {
+          CostCollector.updateInQueueCost(rootStat.getCount(),false);
           SelectStatement selectStatement = (SelectStatement) ctx.getStatement();
           if (selectStatement.isNeedPhysicalExplain()) {
             processExplainPhysicalStatement(ctx);

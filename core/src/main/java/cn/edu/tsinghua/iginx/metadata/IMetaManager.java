@@ -19,6 +19,7 @@
  */
 package cn.edu.tsinghua.iginx.metadata;
 
+import cn.edu.tsinghua.iginx.cost.entity.CostInfo;
 import cn.edu.tsinghua.iginx.metadata.entity.*;
 import cn.edu.tsinghua.iginx.metadata.exception.MetaStorageException;
 import cn.edu.tsinghua.iginx.metadata.hook.StorageEngineChangeHook;
@@ -216,6 +217,10 @@ public interface IMetaManager {
   void updateStatistics(StatisticMeta statisticMeta);
 
   List<StatisticMeta> getStatisticsMetas();
+
+  default void updateCost(CostInfo costInfo) {};
+
+  default  List<CostInfo> getCost() { return  null;};
 
   void updateFragmentRequests(
       Map<FragmentMeta, Long> writeRequestsMap, Map<FragmentMeta, Long> readRequestsMap)

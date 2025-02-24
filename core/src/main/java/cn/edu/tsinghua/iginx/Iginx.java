@@ -21,8 +21,10 @@ package cn.edu.tsinghua.iginx;
 
 import cn.edu.tsinghua.iginx.conf.Config;
 import cn.edu.tsinghua.iginx.conf.ConfigDescriptor;
+import cn.edu.tsinghua.iginx.cost.CostCollector;
 import cn.edu.tsinghua.iginx.monitor.MonitorManager;
 import cn.edu.tsinghua.iginx.mqtt.MQTTService;
+import cn.edu.tsinghua.iginx.resource.ConnResourceManager;
 import cn.edu.tsinghua.iginx.rest.RestServer;
 import cn.edu.tsinghua.iginx.thrift.IService;
 import org.apache.thrift.TProcessor;
@@ -67,6 +69,10 @@ public class Iginx {
     TServer server = new TThreadPoolServer(args);
     LOGGER.info("iginx starts successfully!");
     System.out.print("\n\nIGinX is now in service......\n\n");
+
+    CostCollector.work();
+    ConnResourceManager.work();
+
     server.serve();
   }
 }

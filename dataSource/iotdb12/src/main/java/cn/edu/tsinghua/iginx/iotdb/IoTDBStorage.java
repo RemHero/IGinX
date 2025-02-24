@@ -44,6 +44,7 @@ import cn.edu.tsinghua.iginx.engine.shared.operator.filter.*;
 import cn.edu.tsinghua.iginx.engine.shared.operator.tag.TagFilter;
 import cn.edu.tsinghua.iginx.iotdb.exception.IoTDBException;
 import cn.edu.tsinghua.iginx.iotdb.exception.IoTDBTaskExecuteFailureException;
+import cn.edu.tsinghua.iginx.iotdb.pool.NewSessionPool;
 import cn.edu.tsinghua.iginx.iotdb.query.entity.IoTDBQueryRowStream;
 import cn.edu.tsinghua.iginx.iotdb.tools.DataViewWrapper;
 import cn.edu.tsinghua.iginx.iotdb.tools.FilterTransformer;
@@ -117,7 +118,7 @@ public class IoTDBStorage implements IStorage {
 
   private static final String HAS_NOT_EXECUTED_QUERY = "Has not executed query";
 
-  private final SessionPool sessionPool;
+  private final NewSessionPool sessionPool;
 
   private final StorageEngineMeta meta;
 
@@ -132,6 +133,21 @@ public class IoTDBStorage implements IStorage {
       throw new StorageInitializationException("cannot connect to " + meta);
     }
     sessionPool = createSessionPool();
+  }
+
+  @Override
+  public Integer getConnectionNum() {
+    return sessionPool.getSize();
+  }
+
+  @Override
+  public Integer getMaxConnectionNum() {
+    return sessionPool.maxSize;
+  }
+
+  @Override
+  public void updateConnNum(int num) {
+    sessionPool.setMaxSize(num);
   }
 
   @Override
@@ -151,13 +167,13 @@ public class IoTDBStorage implements IStorage {
     return true;
   }
 
-  private SessionPool createSessionPool() {
+  private NewSessionPool createSessionPool() {
     Map<String, String> extraParams = meta.getExtraParams();
     String username = extraParams.getOrDefault(USERNAME, DEFAULT_USERNAME);
     String password = extraParams.getOrDefault(PASSWORD, DEFAULT_PASSWORD);
     int sessionPoolSize =
         Integer.parseInt(extraParams.getOrDefault(SESSION_POOL_SIZE, DEFAULT_SESSION_POOL_SIZE));
-    return new SessionPool(meta.getIp(), meta.getPort(), username, password, sessionPoolSize);
+    return new NewSessionPool(meta.getIp(), meta.getPort(), username, password, sessionPoolSize);
   }
 
   @Override

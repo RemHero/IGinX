@@ -234,6 +234,7 @@ public class TableStatHandler {
             String.format(COLUMN_SCAN, subString1, subString2)
 //            "select s1 from us.d1;"
         ));
+    ctx.setIsStatistic(true);
     // TODO: 发现了一个BUG，就是通过select * 的方式获取的数据，在pattern解析阶段会无法识别，比如，a,b,*
     executor.execute(ctx);
     Result result = ctx.getResult();
